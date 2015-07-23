@@ -1,0 +1,13 @@
+language: rust
+sudo: false
+
+script:
+    - cargo build
+    - cargo test
+    - cargo bench
+    - cargo doc
+
+env:
+  global:
+    secure: QPYL1XUr4CyK/2DXlsYC1eCpWRpyEiqQSd/FFVR+YdP/rOJ7AyAXQqPhfgjDBQwvc6E2fUiyYjoV/xe1a757DDeZKlgd8Lp20fSDwvNt/Ejx8ueh3h3kuOtgDpIGSKX/l+XC+ltDpzjhh7bowI2/fOEf+kE53jvu9i4PiLnKdlY=
+
