@@ -20,6 +20,8 @@ pub struct AtomicOption<T: Send> {
     phantom: PhantomData<Option<Box<T>>>
 }
 
+unsafe impl<T: Send> Sync for AtomicOption<T> {}
+
 impl<T: Send> AtomicOption<T> {
     /// Create a new AtomicOption storing the specified data.
     ///
