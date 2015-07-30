@@ -14,15 +14,15 @@ const NULL: usize = 0;
 
 /// An atomic version of `Option<Box<T>>`, useful for moving owned objects
 /// between threads in a wait-free manner.
-pub struct AtomicOption<T: Send> {
+pub struct AtomicOption<T> {
     // Contains the address of a Box<T>, or 0 to indicate None
     inner: AtomicUsize,
     phantom: PhantomData<Option<Box<T>>>
 }
 
-unsafe impl<T: Send> Sync for AtomicOption<T> {}
+unsafe impl<T> Sync for AtomicOption<T> {}
 
-impl<T: Send> AtomicOption<T> {
+impl<T> AtomicOption<T> {
     /// Create a new AtomicOption storing the specified data.
     ///
     /// ```
@@ -145,7 +145,7 @@ impl<T: Send> AtomicOption<T> {
     }
 }
 
-impl<T: Send> From<Option<Box<T>>> for AtomicOption<T> {
+impl<T> From<Option<Box<T>>> for AtomicOption<T> {
     #[inline]
     fn from(opt: Option<Box<T>>) -> AtomicOption<T> {
         match opt {
@@ -155,7 +155,7 @@ impl<T: Send> From<Option<Box<T>>> for AtomicOption<T> {
     }
 }
 
-impl<T: Send> Drop for AtomicOption<T> {
+impl<T> Drop for AtomicOption<T> {
     fn drop(&mut self) {
         let _ = self.take(Ordering::SeqCst);
     }
