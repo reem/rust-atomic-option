@@ -143,6 +143,34 @@ impl<T> AtomicOption<T> {
             _ => Some(unsafe { from_raw(raw_new) })
         }
     }
+
+    /// Execute a `compare_and_swap` loop until there is a value in the AtomicOption,
+    /// then return it.
+    ///
+    /// ```
+    /// # use std::sync::atomic::Ordering;
+    /// # use std::sync::Arc;
+    /// # use std::thread;
+    /// # use atomic_option::AtomicOption;
+    ///
+    /// // We'll use an AtomicOption as a lightweight channel transferring data via a spinlock.
+    /// let tx = Arc::new(AtomicOption::empty());
+    /// let rx = tx.clone();
+    ///
+    /// thread::spawn(move || {
+    ///     assert_eq!(*rx.spinlock(Ordering::Acquire), 7);
+    /// });
+    ///
+    /// tx.swap(Box::new(7), Ordering::Release);
+    /// ```
+    pub fn spinlock(&self, ordering: Ordering) -> Box<T> {
+        loop {
+            match self.replace(None, ordering) {
+                Some(v) => return v,
+                None => {}
+            }
+        }
+    }
 }
 
 impl<T> From<Option<Box<T>>> for AtomicOption<T> {
