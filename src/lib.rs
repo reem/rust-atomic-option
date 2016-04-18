@@ -163,6 +163,7 @@ impl<T> AtomicOption<T> {
     ///
     /// tx.swap(Box::new(7), Ordering::Release);
     /// ```
+    #[inline]
     pub fn spinlock(&self, ordering: Ordering) -> Box<T> {
         loop {
             match self.replace(None, ordering) {
@@ -170,6 +171,15 @@ impl<T> AtomicOption<T> {
                 None => {}
             }
         }
+    }
+
+    /// Get the raw value stored in the AtomicOption.
+    ///
+    /// ## Safety
+    ///
+    /// It is almost *never* safe to read from this pointer.
+    pub fn load_raw(&self, ordering: Ordering) -> *const T {
+        self.inner.load(ordering) as *const T
     }
 }
 
