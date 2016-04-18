@@ -40,6 +40,14 @@ impl<T> AtomicOption<T> {
         }
     }
 
+    /// Create a new AtomicOption from a raw pointer.
+    pub unsafe fn from_raw(ptr: *mut T) -> AtomicOption<T> {
+        AtomicOption {
+            inner: AtomicUsize::new(ptr as usize),
+            phantom: PhantomData
+        }
+    }
+
     /// Create a new AtomicOption storing None.
     ///
     /// ```
