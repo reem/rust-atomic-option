@@ -6,23 +6,22 @@
 //! An atomic, nullable, owned pointer.
 //!
 
-use std::mem;
 use std::marker::PhantomData;
-use std::sync::atomic::{AtomicUsize, Ordering};
-
-const NULL: usize = 0;
+use std::sync::atomic::{AtomicPtr, Ordering};
 
 /// An atomic version of `Option<Box<T>>`, useful for moving owned objects
 /// between threads in a wait-free manner.
 pub struct AtomicOption<T> {
     // Contains the address of a Box<T>, or 0 to indicate None
-    inner: AtomicUsize,
+    inner: AtomicPtr<T>,
     phantom: PhantomData<Option<Box<T>>>
 }
 
 unsafe impl<T> Sync for AtomicOption<T> {}
 
 impl<T> AtomicOption<T> {
+    const NULL: *mut T = std::ptr::null_mut();
+
     /// Create a new AtomicOption storing the specified data.
     ///
     /// ```
@@ -35,7 +34,7 @@ impl<T> AtomicOption<T> {
     #[inline]
     pub fn new(data: Box<T>) -> AtomicOption<T> {
         AtomicOption {
-            inner: AtomicUsize::new(into_raw(data)),
+            inner: AtomicPtr::new(Box::into_raw(data)),
             phantom: PhantomData
         }
     }
@@ -43,7 +42,7 @@ impl<T> AtomicOption<T> {
     /// Create a new AtomicOption from a raw pointer.
     pub unsafe fn from_raw(ptr: *mut T) -> AtomicOption<T> {
         AtomicOption {
-            inner: AtomicUsize::new(ptr as usize),
+            inner: AtomicPtr::new(ptr),
             phantom: PhantomData
         }
     }
@@ -60,7 +59,7 @@ impl<T> AtomicOption<T> {
     #[inline]
     pub fn empty() -> AtomicOption<T> {
         AtomicOption {
-            inner: AtomicUsize::new(NULL),
+            inner: AtomicPtr::new(Self::NULL),
             phantom: PhantomData
         }
     }
@@ -114,11 +113,13 @@ impl<T> AtomicOption<T> {
     /// ```
     #[inline]
     pub fn replace(&self, new: Option<Box<T>>, ordering: Ordering) -> Option<Box<T>> {
-        let raw_new = new.map(into_raw).unwrap_or(0);
+        let raw_new = new.map(Box::into_raw).unwrap_or(Self::NULL);
 
-        match self.inner.swap(raw_new, ordering) {
-            NULL => None,
-            old => Some(unsafe { from_raw(old) })
+        let old = self.inner.swap(raw_new, ordering);
+        if old == Self::NULL {
+            None
+        } else {
+            Some(unsafe { Box::from_raw(old) })
         }
     }
 
@@ -144,11 +145,12 @@ impl<T> AtomicOption<T> {
     /// ```
     #[inline]
     pub fn try_store(&self, new: Box<T>, ordering: Ordering) -> Option<Box<T>> {
-        let raw_new = into_raw(new);
+        let raw_new = Box::into_raw(new);
 
-        match self.inner.compare_and_swap(NULL, raw_new, ordering) {
-            NULL => None,
-            _ => Some(unsafe { from_raw(raw_new) })
+        if self.inner.compare_and_swap(Self::NULL, raw_new, ordering) == Self::NULL {
+            None
+        } else {
+            Some(unsafe { Box::from_raw(raw_new) })
         }
     }
 
@@ -206,14 +208,3 @@ impl<T> Drop for AtomicOption<T> {
         let _ = self.take(Ordering::SeqCst);
     }
 }
-
-#[inline(always)]
-fn into_raw<T>(data: Box<T>) -> usize {
-    unsafe { mem::transmute(data) }
-}
-
-#[inline(always)]
-unsafe fn from_raw<T>(data: usize) -> Box<T> {
-    mem::transmute(data)
-}
-
